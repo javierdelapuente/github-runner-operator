@@ -1111,6 +1111,7 @@ class GithubRunnerCharm(CharmBase):
         execute_command(["/snap/bin/lxd", "waitready"])
         execute_command(["/snap/bin/lxd", "init", "--auto"])
         execute_command(["/snap/bin/lxc", "network", "set", "lxdbr0", "ipv6.address", "none"])
+        execute_command(["/snap/bin/lxc", "network", "set", "lxdbr0", "bridge.mtu", "1400"])
         execute_command(["/snap/bin/lxd", "waitready"])
         if not LXD_PROFILE_YAML.exists():
             self._enable_kernel_modules()

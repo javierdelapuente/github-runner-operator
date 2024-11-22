@@ -385,7 +385,7 @@ async def image_builder_fixture(
             "github-runner-image-builder",
             channel="latest/edge",
             revision=2,
-            constraints="cores=2 mem=16G root-disk=20G virt-type=virtual-machine",
+            constraints="cores=2 mem=4G root-disk=20G virt-type=virtual-machine",
             config={
                 "app-channel": "edge",
                 "build-interval": "12",
@@ -446,7 +446,7 @@ async def app_openstack_runner_fixture(
                 OPENSTACK_CLOUDS_YAML_CONFIG_NAME: clouds_yaml_contents,
                 OPENSTACK_NETWORK_CONFIG_NAME: network_name,
                 OPENSTACK_FLAVOR_CONFIG_NAME: flavor_name,
-                USE_APROXY_CONFIG_NAME: "true",
+                # USE_APROXY_CONFIG_NAME: "true",
                 LABELS_CONFIG_NAME: app_name,
             },
             wait_idle=False,
