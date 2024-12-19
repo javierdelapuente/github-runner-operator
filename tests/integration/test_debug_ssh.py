@@ -3,6 +3,7 @@
 
 """Integration tests for github-runner charm with ssh-debug integration."""
 import logging
+from asyncio import sleep
 
 import pytest
 from github.Branch import Branch
@@ -47,6 +48,9 @@ async def test_ssh_debug(
     await instance_helper.expose_to_instance(unit=unit, port=10022, host=tmate_ssh_server_unit_ip)
 
     # trigger tmate action
+    logger.info("JAVI you have 10 min to test1.")
+    await sleep(10)
+
     logger.info("Dispatching workflow_dispatch_ssh_debug.yaml workflow.")
 
     # expect failure since the ssh workflow will timeout
