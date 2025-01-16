@@ -1,8 +1,9 @@
-# Copyright 2024 Canonical Ltd.
+# Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 """Fixtures for github runner charm integration tests."""
 import logging
+import os
 import random
 import secrets
 import string
@@ -131,7 +132,7 @@ def path(pytestconfig: pytest.Config) -> str:
 @pytest.fixture(scope="module")
 def token(pytestconfig: pytest.Config) -> str:
     """Configured token setting."""
-    token = pytestconfig.getoption("--token")
+    token = pytestconfig.getoption("--token") or os.environ.get("INTEGRATION_TOKEN")
     assert token, "Please specify the --token command line option"
     tokens = {token.strip() for token in token.split(",")}
     random_token = random.choice(list(tokens))
@@ -141,7 +142,7 @@ def token(pytestconfig: pytest.Config) -> str:
 @pytest.fixture(scope="module")
 def token_alt(pytestconfig: pytest.Config, token: str) -> str:
     """Configured token_alt setting."""
-    token_alt = pytestconfig.getoption("--token-alt")
+    token_alt = pytestconfig.getoption("--token-alt") or os.environ.get("INTEGRATION_TOKEN_ALT")
     assert token_alt, (
         "Please specify the --token-alt command line option with GitHub Personal "
         "Access Token value."
@@ -203,6 +204,7 @@ def private_endpoint_config_fixture(pytestconfig: pytest.Config) -> PrivateEndpo
     """The private endpoint configuration values."""
     auth_url = pytestconfig.getoption("--openstack-auth-url-amd64")
     password = pytestconfig.getoption("--openstack-password-amd64")
+    password = password or os.environ.get("INTEGRATION_OPENSTACK_PASSWORD_AMD64")
     project_domain_name = pytestconfig.getoption("--openstack-project-domain-name-amd64")
     project_name = pytestconfig.getoption("--openstack-project-name-amd64")
     user_domain_name = pytestconfig.getoption("--openstack-user-domain-name-amd64")
@@ -385,7 +387,7 @@ async def image_builder_fixture(
             "github-runner-image-builder",
             channel="latest/edge",
             revision=2,
-            constraints="cores=2 mem=16G root-disk=20G virt-type=virtual-machine",
+            constraints="cores=2 mem=2G root-disk=20G virt-type=virtual-machine",
             config={
                 "app-channel": "edge",
                 "build-interval": "12",
@@ -440,7 +442,7 @@ async def app_openstack_runner_fixture(
             reconcile_interval=60,
             constraints={
                 "root-disk": 50 * 1024,
-                "mem": 16 * 1024,
+                "mem": 2 * 1024,
             },
             config={
                 OPENSTACK_CLOUDS_YAML_CONFIG_NAME: clouds_yaml_contents,
@@ -470,43 +472,28 @@ async def app_one_runner(model: Model, app_no_runner: Application) -> AsyncItera
     return app_no_runner
 
 
-@pytest_asyncio.fixture(scope="module")
-async def app_scheduled_events(
+@pytest_asyncio.fixture(scope="module", name="app_scheduled_events")
+async def app_scheduled_events_fixture(
     model: Model,
-    charm_file: str,
-    app_name: str,
-    path: str,
-    token: str,
-    http_proxy: str,
-    https_proxy: str,
-    no_proxy: str,
-) -> AsyncIterator[Application]:
-    """Application with no token.
-
-    Test should ensure it returns with the application having one runner.
-
-    This fixture has to deploy a new application. The scheduled events are set
-    to one hour in other application to avoid conflicting with the tests.
-    Changes to the duration of scheduled interval only takes effect after the
-    next trigger. Therefore, it would take a hour for the duration change to
-    take effect.
-    """
-    application = await deploy_github_runner_charm(
-        model=model,
-        charm_file=charm_file,
-        app_name=app_name,
-        path=path,
-        token=token,
-        runner_storage="memory",
-        http_proxy=http_proxy,
-        https_proxy=https_proxy,
-        no_proxy=no_proxy,
-        reconcile_interval=8,
-    )
-
+    app_openstack_runner,
+):
+    """Application to check scheduled events."""
+    application = app_openstack_runner
+    await application.set_config({"reconcile-interval": "8"})
     await application.set_config({VIRTUAL_MACHINES_CONFIG_NAME: "1"})
+    await model.wait_for_idle(apps=[application.name], status=ACTIVE, timeout=90 * 60)
     await reconcile(app=application, model=model)
+    return application
 
+
+@pytest_asyncio.fixture(scope="module", name="app_no_wait_tmate")
+async def app_no_wait_tmate_fixture(
+    model: Model,
+    app_openstack_runner,
+):
+    """Application to check tmate ssh with openstack without waiting for active."""
+    application = app_openstack_runner
+    await application.set_config({"reconcile-interval": "60", VIRTUAL_MACHINES_CONFIG_NAME: "1"})
     return application
 
 
@@ -569,11 +556,11 @@ async def app_no_wait_fixture(
 
 @pytest_asyncio.fixture(scope="module", name="tmate_ssh_server_app")
 async def tmate_ssh_server_app_fixture(
-    model: Model, app_no_wait: Application
+    model: Model, app_no_wait_tmate: Application
 ) -> AsyncIterator[Application]:
     """tmate-ssh-server charm application related to GitHub-Runner app charm."""
     tmate_app: Application = await model.deploy("tmate-ssh-server", channel="edge")
-    await app_no_wait.relate("debug-ssh", f"{tmate_app.name}:debug-ssh")
+    await app_no_wait_tmate.relate("debug-ssh", f"{tmate_app.name}:debug-ssh")
     await model.wait_for_idle(apps=[tmate_app.name], status=ACTIVE, timeout=60 * 30)
 
     return tmate_app
@@ -585,11 +572,13 @@ async def tmate_ssh_server_unit_ip_fixture(
     tmate_ssh_server_app: Application,
 ) -> bytes | str:
     """tmate-ssh-server charm unit ip."""
-    status: FullStatus = await model.get_status([tmate_ssh_server_app.name])
+    app_name = tmate_ssh_server_app.name
+    status: FullStatus = await model.get_status([app_name])
+    app_status = status.applications[app_name]
+    assert app_status is not None, f"Application {app_name} not found in status"
     try:
-        unit_status: UnitStatus = next(
-            iter(status.applications[tmate_ssh_server_app.name].units.values())
-        )
+        # mypy does not recognize that app_status is of type ApplicationStatus
+        unit_status: UnitStatus = next(iter(app_status.units.values()))  # type: ignore
         assert unit_status.public_address, "Invalid unit address"
         return unit_status.public_address
     except StopIteration as exc:
