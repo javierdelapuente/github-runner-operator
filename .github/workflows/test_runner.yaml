@@ -1,0 +1,17 @@
+name: Some tests on self hosted runners
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+jobs:
+    private-endpoint-tests:
+        runs-on: [self-hosted]
+        steps:
+        - name: Echo runner name
+          run: |
+            echo "RUNNING"
+            uname -a
+            dpkg --list | grep linux-image
+            hwe-support-status --verbose
