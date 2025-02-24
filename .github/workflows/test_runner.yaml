@@ -15,4 +15,8 @@ jobs:
             uname -a
             dpkg --list | grep linux-image
             hwe-support-status --verbose
-
+            sudo snap install lxd
+            lxd init --auto
+            lxc launch ubuntu:24.04 ubuntu-config
+            sleep 30
+            lxc config device set ubuntu-config eth0 limits.priority=10
