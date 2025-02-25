@@ -20,3 +20,4 @@ jobs:
             lxc launch ubuntu:24.04 ubuntu-config
             sleep 30
             lxc config device override ubuntu-config eth0 limits.priority=10
+
