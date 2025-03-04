@@ -7,7 +7,7 @@ on:
 
 jobs:
     private-endpoint-tests:
-        runs-on: [self-hosted, javi-runner-29842]
+        runs-on: [self-hosted, macos]
         steps:
         - name: Echo runner name
           run: |
@@ -18,6 +18,6 @@ jobs:
             sudo snap install lxd
             lxd init --auto
             lxc launch ubuntu:24.04 ubuntu-config
-            sleep 30
+            sleep 120
             lxc config device override ubuntu-config eth0 limits.priority=10
 
