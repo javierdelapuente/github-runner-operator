@@ -18,6 +18,6 @@ jobs:
             sudo snap install lxd
             lxd init --auto
             lxc launch ubuntu:24.04 ubuntu-config
-            sleep 120
+            sleep 250
             lxc config device override ubuntu-config eth0 limits.priority=10
 
