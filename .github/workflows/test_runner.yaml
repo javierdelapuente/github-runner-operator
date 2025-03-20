@@ -7,7 +7,7 @@ on:
 
 jobs:
     private-endpoint-tests:
-        runs-on: [self-hosted, macos]
+        runs-on: [self-hosted, linux]
         steps:
         - name: Echo runner name
           run: |
