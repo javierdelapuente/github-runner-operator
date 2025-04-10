@@ -6,8 +6,8 @@ on:
 
 jobs:
   build:
-    # runs-on: ["self-hosted", "stg-reactive"]
-    runs-on: ["self-hosted", "test-udqgik1a"]
+    runs-on: ["self-hosted", "stg-reactive"]
+    # runs-on: ["self-hosted", "test-udqgik1a"]
     steps:
         - name: sleep for 6 minutes
           run: |
