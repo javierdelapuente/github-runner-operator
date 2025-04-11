@@ -12,4 +12,3 @@ jobs:
         - name: sleep for 6 minutes
           run: |
             sleep 360
-
